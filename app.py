@@ -2,104 +2,116 @@ import streamlit as st
 import random
 import time
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Edge Bot - Pro", page_icon="🃏", layout="wide")
+# --- CONFIGURACIÓN ---
+st.set_page_config(page_title="Edge Bot GTO", page_icon="📈", layout="centered")
 
-# --- ESTILO VISUAL (CSS) ---
+# --- DISEÑO PROFESIONAL (ESTILO GTO WIZARD / 888) ---
 st.markdown("""
     <style>
     .main { background-color: #0b0d11; color: white; }
-    
-    /* Contenedor del Logo */
-    .logo-container {
-        display: flex;
-        justify-content: center;
-        margin-bottom: 10px;
-    }
-    .logo-img {
-        width: 150px;
-        border-radius: 50%;
-        border: 2px solid #f1c40f;
-    }
-
     .table-container {
-        position: relative; width: 100%; max-width: 700px; height: 400px;
-        margin: 0 auto; background: radial-gradient(circle, #1a4a31 0%, #0d2b1c 100%);
-        border: 12px solid #3d2b1f; border-radius: 200px;
-        box-shadow: 0px 20px 50px rgba(0,0,0,0.8);
+        position: relative; width: 100%; height: 420px;
+        background: radial-gradient(circle, #1a4a31 0%, #051a0f 100%);
+        border: 10px solid #222; border-radius: 200px;
+        margin: 20px auto; box-shadow: inset 0 0 50px #000;
     }
+    .player {
+        position: absolute; width: 75px; text-align: center; transform: translate(-50%, -50%);
+    }
+    .avatar {
+        width: 45px; height: 45px; background: #1c2833; border: 2px solid #555;
+        border-radius: 50%; margin: 0 auto; line-height: 45px; font-size: 0.7rem;
+    }
+    .hero { border: 3px solid #f1c40f; box-shadow: 0 0 10px #f1c40f; background: #d35400; }
+    .stack { background: rgba(0,0,0,0.8); color: #2ecc71; font-size: 0.7rem; border-radius: 3px; padding: 2px; }
     
-    .player-box { position: absolute; width: 80px; text-align: center; transform: translate(-50%, -50%); }
-    .avatar { 
-        width: 50px; height: 50px; background: #2c3e50; border: 2px solid #7f8c8d; 
-        border-radius: 50%; margin: 0 auto; line-height: 50px; font-weight: bold; font-size: 0.7rem;
+    .card-area {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        display: flex; gap: 10px;
     }
-    .hero-avatar { background: #e67e22; border: 3px solid #f1c40f; box-shadow: 0 0 15px #f1c40f; }
-    .stack-label { background: black; color: #2ecc71; border-radius: 5px; font-size: 0.7rem; padding: 2px; margin-top: 3px; }
-    
-    .card-center { 
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-        display: flex; gap: 8px; 
+    .poker-card {
+        background: white; color: black; width: 50px; height: 75px;
+        border-radius: 5px; font-weight: bold; font-size: 1.6rem;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
     }
-    .card { 
-        background: white; border-radius: 5px; width: 45px; height: 65px; 
-        color: black; font-weight: bold; font-size: 1.5rem; text-align: center; line-height: 65px; 
-    }
+    .btn-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+    .gto-correct { color: #2ecc71; font-weight: bold; border: 1px solid #2ecc71; padding: 10px; border-radius: 5px; }
+    .gto-wrong { color: #e74c3c; font-weight: bold; border: 1px solid #e74c3c; padding: 10px; border-radius: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- LÓGICA DE JUEGO ---
-pos_nombres = ["UTG", "UTG+1", "MP", "MP+2", "HJ", "CO", "BTN", "SB", "BB"]
-coords = [(50, 85), (85, 75), (95, 50), (85, 25), (50, 15), (15, 25), (5, 50), (15, 75), (30, 85)]
+# --- MOTOR DE ESTRATEGIA GTO ---
+def obtener_estrategia(mano, pos, stack):
+    # Lógica simplificada basada en solver para Cash Game 100BB
+    v1, v2 = mano[0][0], mano[1][0]
+    suited = mano[0][1] == mano[1][1]
+    
+    # Ejemplo de frecuencias GTO
+    if v1 == v2 and v1 in "AKQJ": return {"Raise": 100, "Call": 0, "Fold": 0}
+    if v1 in "AKQ" and v2 in "AKQ": return {"Raise": 85, "Call": 15, "Fold": 0}
+    if pos in ["BTN", "SB"]: 
+        if suited or v1 in "AX": return {"Raise": 60, "Call": 30, "Fold": 10}
+    return {"Raise": 10, "Call": 20, "Fold": 70}
 
 def nueva_mano():
-    cartas = ["2","3","4","5","6","7","8","9","T","J","Q","K","A"]
-    palos = ["♥️","♦️","♣️","♠️"]
-    mazo = [f"{v}{p}" for v in cartas for p in palos]
+    vals = ["2","3","4","5","6","7","8","9","T","J","Q","K","A"]
+    pals = ["♣️","♥️","♠️","♦️"]
+    mazo = [(v, p) for v in vals for p in pals]
     random.shuffle(mazo)
     hero_idx = random.randint(0, 8)
+    mano = [mazo.pop(), mazo.pop()]
     return {
         "hero_idx": hero_idx,
-        "hero_pos": pos_nombres[hero_idx],
-        "mano": [mazo.pop(), mazo.pop()],
-        "stacks": [random.randint(20, 150) for _ in range(9)]
+        "mano": mano,
+        "pos": ["UTG", "UTG+1", "MP", "MP+2", "HJ", "CO", "BTN", "SB", "BB"][hero_idx],
+        "stacks": [random.randint(80, 150) for _ in range(9)],
+        "resultado": None
     }
 
-if 'juego' not in st.session_state:
-    st.session_state.juego = nueva_mano()
+if 'game' not in st.session_state: st.session_state.game = nueva_mano()
 
-# --- MOSTRAR LOGO ---
-st.markdown("""
-    <div class="logo-container">
-        <img class="logo-img" src="https://cdn-icons-png.flaticon.com/512/2933/2933116.png">
-    </div>
-    """, unsafe_allow_html=True)
+# --- INTERFAZ ---
+st.image("https://cdn-icons-png.flaticon.com/512/2933/2933116.png", width=60)
+st.title("Edge Bot: GTO Solver")
 
-# --- DIBUJO DE MESA ---
+# Dibujo de la mesa
+coords = [(50, 85), (80, 75), (92, 50), (80, 25), (50, 15), (20, 25), (8, 50), (20, 75), (35, 85)]
 mesa_html = '<div class="table-container">'
-for i, pos in enumerate(pos_nombres):
-    es_hero = " hero-avatar" if i == st.session_state.juego['hero_idx'] else ""
+for i, pos in enumerate(["UTG", "UTG+1", "MP", "MP+2", "HJ", "CO", "BTN", "SB", "BB"]):
+    is_hero = " hero" if i == st.session_state.game['hero_idx'] else ""
     x, y = coords[i]
-    stack = st.session_state.juego['stacks'][i]
-    mesa_html += f'<div class="player-box" style="left:{x}%; top:{y}%;"><div class="avatar{es_hero}">{pos}</div><div class="stack-label">${stack}BB</div></div>'
+    mesa_html += f'<div class="player" style="left:{x}%; top:{y}%;"><div class="avatar{is_hero}">{pos}</div><div class="stack">{st.session_state.game["stacks"][i]}BB</div></div>'
 
-h = st.session_state.juego['mano']
-mesa_html += f'<div class="card-center">'
-mesa_html += f'<div class="card" style="color:{"red" if h[0][-1] in "♥️♦️" else "black"};">{h[0]}</div>'
-mesa_html += f'<div class="card" style="color:{"red" if h[1][-1] in "♥️♦️" else "black"};">{h[1]}</div>'
+m = st.session_state.game['mano']
+mesa_html += f'<div class="card-area">'
+mesa_html += f'<div class="poker-card" style="color:{"red" if m[0][1] in "♥️♦️" else "black"}">{m[0][0]}{m[0][1]}</div>'
+mesa_html += f'<div class="poker-card" style="color:{"red" if m[1][1] in "♥️♦️" else "black"}">{m[1][0]}{m[1][1]}</div>'
 mesa_html += '</div></div>'
-
 st.markdown(mesa_html, unsafe_allow_html=True)
 
-# --- PANEL DE ACCIÓN ---
-st.write(f"### Turno: **{st.session_state.juego['hero_pos']}** | Stack: **${st.session_state.juego['stacks'][st.session_state.juego['hero_idx']]} BB**")
+# --- ACCIONES GTO ---
+st.write(f"### Acción en **{st.session_state.game['pos']}**")
+estrategia = obtener_estrategia(st.session_state.game['mano'], st.session_state.game['pos'], 100)
 
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("🚀 RAISE", use_container_width=True):
-        st.session_state.juego = nueva_mano()
+if st.session_state.game['resultado']:
+    res = st.session_state.game['resultado']
+    clase = "gto-correct" if res['freq'] > 50 else "gto-wrong"
+    st.markdown(f'<div class="{clase}">Tu decisión: {res["accion"]} (Frecuencia GTO: {res["freq"]}%)</div>', unsafe_allow_html=True)
+    if st.button("Siguiente Mano ➡️"):
+        st.session_state.game = nueva_mano()
         st.rerun()
-with col2:
-    if st.button("✖️ FOLD", use_container_width=True):
-        st.session_state.juego = nueva_mano()
-        st.rerun()
+else:
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🚀 RAISE 3BB"):
+            st.session_state.game['resultado'] = {"accion": "Raise", "freq": estrategia["Raise"]}
+            st.rerun()
+    with col2:
+        if st.button("👀 CALL / CHECK"):
+            st.session_state.game['resultado'] = {"accion": "Call/Check", "freq": estrategia["Call"]}
+            st.rerun()
+    with col3:
+        if st.button("✖️ FOLD"):
+            st.session_state.game['resultado'] = {"accion": "Fold", "freq": estrategia["Fold"]}
+            st.rerun()
