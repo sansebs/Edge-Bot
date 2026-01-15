@@ -1,82 +1,60 @@
 import streamlit as st
 import random
-import time
 import pandas as pd
 
-# --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Edge Bot - GTO Master", layout="centered")
+# --- CONFIGURACIÓN DE ÉLITE ---
+st.set_page_config(page_title="Edge Bot - Elite Solver", layout="wide", page_icon="📈")
 
-# --- CSS ESTILO GTO WIZARD ---
+# --- DISEÑO UI PREMIUM (CSS) ---
 st.markdown("""
     <style>
-    .main { background-color: #0b0d11; color: white; }
-    .table-container {
-        position: relative; width: 100%; height: 400px;
-        background: radial-gradient(circle, #1a4a31 0%, #051a0f 100%);
-        border: 12px solid #222; border-radius: 200px; margin: 20px auto;
+    .main { background-color: #06080a; color: #e0e0e0; font-family: 'Inter', sans-serif; }
+    
+    /* Mesa Ovalada Pro */
+    .poker-arena {
+        position: relative; width: 100%; max-width: 950px; height: 480px;
+        margin: 0 auto; background: radial-gradient(circle, #0f4d2b 0%, #051a0f 100%);
+        border: 12px solid #1a1a1a; border-radius: 250px / 160px;
+        box-shadow: inset 0 0 80px #000, 0 25px 50px rgba(0,0,0,0.8);
     }
-    .player { position: absolute; width: 80px; text-align: center; transform: translate(-50%, -50%); }
-    .hero-box { border: 2px solid #f1c40f; border-radius: 50%; padding: 5px; background: #d35400; }
-    .matrix-container { display: grid; grid-template-columns: repeat(13, 1fr); gap: 1px; width: 300px; margin: 0 auto; }
-    .matrix-cell { width: 22px; height: 22px; font-size: 8px; text-align: center; line-height: 22px; color: black; font-weight: bold; }
+    
+    /* Jugadores y Stats */
+    .seat { position: absolute; width: 110px; text-align: center; transform: translate(-50%, -50%); }
+    .player-card {
+        background: #121417; border: 1px solid #333; border-radius: 8px;
+        padding: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .hero-border { border: 2px solid #f1c40f !important; box-shadow: 0 0 15px rgba(241,196,15,0.4) !important; }
+    .pos-tag { color: #f1c40f; font-weight: bold; font-size: 0.8rem; }
+    .stack-val { color: #2ecc71; font-family: 'Courier New', monospace; font-size: 0.85rem; }
+
+    /* Cartas Estilo GTO Wizard */
+    .board-container {
+        position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+        display: flex; gap: 8px;
+    }
+    .card-ui {
+        background: white; color: black; width: 52px; height: 75px;
+        border-radius: 4px; font-weight: 800; font-size: 1.6rem;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 2px 4px 8px rgba(0,0,0,0.4); border: 1px solid #ccc;
+    }
+    
+    /* Matriz GTO */
+    .gto-matrix { display: grid; grid-template-columns: repeat(13, 1fr); gap: 1px; width: 100%; max-width: 400px; margin: auto; }
+    .m-cell { aspect-ratio: 1; font-size: 0.5rem; display: flex; align-items: center; justify-content: center; border-radius: 1px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- MOTOR DE MATRIZ GTO ---
+# --- MOTOR LÓGICO ---
 valores = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"]
+palos = ["♣","♦","♥","♠"]
 
-def render_matrix(mano_actual):
-    st.write("### 📊 Matriz de Rango GTO (Sugerencia)")
-    cols = st.columns([1, 2, 1])
-    with cols[1]:
-        html_matrix = '<div class="matrix-container">'
-        for v1 in valores:
-            for v2 in valores:
-                # Lógica de color simplificada (Rojo=Raise, Verde=Call, Azul=Fold)
-                color = "#e74c3c" if v1 in "AKQ" or v2 in "AKQ" else "#2ecc71"
-                if v1 == v2 and valores.index(v1) > 7: color = "#3498db"
-                
-                # Resaltar mano actual
-                border = "border: 2px solid yellow;" if (v1 in mano_actual and v2 in mano_actual) else ""
-                html_matrix += f'<div class="matrix-cell" style="background:{color}; {border}">{v1}{v2}</div>'
-        html_matrix += '</div>'
-        st.markdown(html_matrix, unsafe_allow_html=True)
-
-# --- LÓGICA DE JUEGO ---
-def nueva_mano():
-    vals = ["2","3","4","5","6","7","8","9","T","J","Q","K","A"]
-    pals = ["♣️","♥️","♠️","♦️"]
-    mazo = [(v, p) for v in vals for p in pals]
+def reset_game():
+    mazo = [v+p for v in valores for p in palos]
     random.shuffle(mazo)
-    hero_idx = random.randint(0, 8)
+    hero_pos = random.choice(["UTG", "MP", "CO", "BTN", "SB", "BB"])
     return {
-        "hero_idx": hero_idx,
+        "hero_pos": hero_pos,
         "mano": [mazo.pop(), mazo.pop()],
-        "pos": ["UTG", "UTG+1", "MP", "MP+2", "HJ", "CO", "BTN", "SB", "BB"][hero_idx],
-        "stacks": [random.randint(100, 150) for _ in range(9)],
-        "show_analysis": False
-    }
-
-if 'game' not in st.session_state: st.session_state.game = nueva_mano()
-
-# --- MESA ---
-st.title("🛡️ Edge Bot: GTO Cash Simulator")
-m = st.session_state.game['mano']
-coords = [(50, 85), (80, 75), (92, 50), (80, 25), (50, 15), (20, 25), (8, 50), (20, 75), (35, 85)]
-
-mesa_html = '<div class="table-container">'
-for i, pos in enumerate(["UTG", "UTG+1", "MP", "MP+2", "HJ", "CO", "BTN", "SB", "BB"]):
-    style = 'class="player hero-box"' if i == st.session_state.game['hero_idx'] else 'class="player"'
-    mesa_html += f'<div {style} style="left:{coords[i][0]}%; top:{coords[i][1]}%;">{pos}<br><small>${st.session_state.game["stacks"][i]}BB</small></div>'
-
-mesa_html += f'<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:flex; gap:10px;">'
-mesa_html += f'<div style="background:white; color:black; padding:10px; border-radius:5px; font-weight:bold; font-size:20px;">{m[0][0]}{m[0][1]}</div>'
-mesa_html += f'<div style="background:white; color:black; padding:10px; border-radius:5px; font-weight:bold; font-size:20px;">{m[1][0]}{m[1][1]}</div>'
-mesa_html += '</div></div>'
-st.markdown(mesa_html, unsafe_allow_html=True)
-
-# --- ACCIONES ---
-if not st.session_state.game['show_analysis']:
-    st.write(f"### Turno en {st.session_state.game['pos']}")
-    c1, c2, c3, c4 = st.columns(4)
-    if c1.button("🚀 RAISE (3bb)"): st.session_state.game['show_analysis'] = True
+        "board": [mazo.pop(), mazo.pop(),
