@@ -1,117 +1,82 @@
 import streamlit as st
 import random
 import time
+import pandas as pd
 
 # --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Edge Bot GTO", page_icon="📈", layout="centered")
+st.set_page_config(page_title="Edge Bot - GTO Master", layout="centered")
 
-# --- DISEÑO PROFESIONAL (ESTILO GTO WIZARD / 888) ---
+# --- CSS ESTILO GTO WIZARD ---
 st.markdown("""
     <style>
     .main { background-color: #0b0d11; color: white; }
     .table-container {
-        position: relative; width: 100%; height: 420px;
+        position: relative; width: 100%; height: 400px;
         background: radial-gradient(circle, #1a4a31 0%, #051a0f 100%);
-        border: 10px solid #222; border-radius: 200px;
-        margin: 20px auto; box-shadow: inset 0 0 50px #000;
+        border: 12px solid #222; border-radius: 200px; margin: 20px auto;
     }
-    .player {
-        position: absolute; width: 75px; text-align: center; transform: translate(-50%, -50%);
-    }
-    .avatar {
-        width: 45px; height: 45px; background: #1c2833; border: 2px solid #555;
-        border-radius: 50%; margin: 0 auto; line-height: 45px; font-size: 0.7rem;
-    }
-    .hero { border: 3px solid #f1c40f; box-shadow: 0 0 10px #f1c40f; background: #d35400; }
-    .stack { background: rgba(0,0,0,0.8); color: #2ecc71; font-size: 0.7rem; border-radius: 3px; padding: 2px; }
-    
-    .card-area {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        display: flex; gap: 10px;
-    }
-    .poker-card {
-        background: white; color: black; width: 50px; height: 75px;
-        border-radius: 5px; font-weight: bold; font-size: 1.6rem;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
-    }
-    .btn-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
-    .gto-correct { color: #2ecc71; font-weight: bold; border: 1px solid #2ecc71; padding: 10px; border-radius: 5px; }
-    .gto-wrong { color: #e74c3c; font-weight: bold; border: 1px solid #e74c3c; padding: 10px; border-radius: 5px; }
+    .player { position: absolute; width: 80px; text-align: center; transform: translate(-50%, -50%); }
+    .hero-box { border: 2px solid #f1c40f; border-radius: 50%; padding: 5px; background: #d35400; }
+    .matrix-container { display: grid; grid-template-columns: repeat(13, 1fr); gap: 1px; width: 300px; margin: 0 auto; }
+    .matrix-cell { width: 22px; height: 22px; font-size: 8px; text-align: center; line-height: 22px; color: black; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- MOTOR DE ESTRATEGIA GTO ---
-def obtener_estrategia(mano, pos, stack):
-    # Lógica simplificada basada en solver para Cash Game 100BB
-    v1, v2 = mano[0][0], mano[1][0]
-    suited = mano[0][1] == mano[1][1]
-    
-    # Ejemplo de frecuencias GTO
-    if v1 == v2 and v1 in "AKQJ": return {"Raise": 100, "Call": 0, "Fold": 0}
-    if v1 in "AKQ" and v2 in "AKQ": return {"Raise": 85, "Call": 15, "Fold": 0}
-    if pos in ["BTN", "SB"]: 
-        if suited or v1 in "AX": return {"Raise": 60, "Call": 30, "Fold": 10}
-    return {"Raise": 10, "Call": 20, "Fold": 70}
+# --- MOTOR DE MATRIZ GTO ---
+valores = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"]
 
+def render_matrix(mano_actual):
+    st.write("### 📊 Matriz de Rango GTO (Sugerencia)")
+    cols = st.columns([1, 2, 1])
+    with cols[1]:
+        html_matrix = '<div class="matrix-container">'
+        for v1 in valores:
+            for v2 in valores:
+                # Lógica de color simplificada (Rojo=Raise, Verde=Call, Azul=Fold)
+                color = "#e74c3c" if v1 in "AKQ" or v2 in "AKQ" else "#2ecc71"
+                if v1 == v2 and valores.index(v1) > 7: color = "#3498db"
+                
+                # Resaltar mano actual
+                border = "border: 2px solid yellow;" if (v1 in mano_actual and v2 in mano_actual) else ""
+                html_matrix += f'<div class="matrix-cell" style="background:{color}; {border}">{v1}{v2}</div>'
+        html_matrix += '</div>'
+        st.markdown(html_matrix, unsafe_allow_html=True)
+
+# --- LÓGICA DE JUEGO ---
 def nueva_mano():
     vals = ["2","3","4","5","6","7","8","9","T","J","Q","K","A"]
     pals = ["♣️","♥️","♠️","♦️"]
     mazo = [(v, p) for v in vals for p in pals]
     random.shuffle(mazo)
     hero_idx = random.randint(0, 8)
-    mano = [mazo.pop(), mazo.pop()]
     return {
         "hero_idx": hero_idx,
-        "mano": mano,
+        "mano": [mazo.pop(), mazo.pop()],
         "pos": ["UTG", "UTG+1", "MP", "MP+2", "HJ", "CO", "BTN", "SB", "BB"][hero_idx],
-        "stacks": [random.randint(80, 150) for _ in range(9)],
-        "resultado": None
+        "stacks": [random.randint(100, 150) for _ in range(9)],
+        "show_analysis": False
     }
 
 if 'game' not in st.session_state: st.session_state.game = nueva_mano()
 
-# --- INTERFAZ ---
-st.image("https://cdn-icons-png.flaticon.com/512/2933/2933116.png", width=60)
-st.title("Edge Bot: GTO Solver")
-
-# Dibujo de la mesa
+# --- MESA ---
+st.title("🛡️ Edge Bot: GTO Cash Simulator")
+m = st.session_state.game['mano']
 coords = [(50, 85), (80, 75), (92, 50), (80, 25), (50, 15), (20, 25), (8, 50), (20, 75), (35, 85)]
+
 mesa_html = '<div class="table-container">'
 for i, pos in enumerate(["UTG", "UTG+1", "MP", "MP+2", "HJ", "CO", "BTN", "SB", "BB"]):
-    is_hero = " hero" if i == st.session_state.game['hero_idx'] else ""
-    x, y = coords[i]
-    mesa_html += f'<div class="player" style="left:{x}%; top:{y}%;"><div class="avatar{is_hero}">{pos}</div><div class="stack">{st.session_state.game["stacks"][i]}BB</div></div>'
+    style = 'class="player hero-box"' if i == st.session_state.game['hero_idx'] else 'class="player"'
+    mesa_html += f'<div {style} style="left:{coords[i][0]}%; top:{coords[i][1]}%;">{pos}<br><small>${st.session_state.game["stacks"][i]}BB</small></div>'
 
-m = st.session_state.game['mano']
-mesa_html += f'<div class="card-area">'
-mesa_html += f'<div class="poker-card" style="color:{"red" if m[0][1] in "♥️♦️" else "black"}">{m[0][0]}{m[0][1]}</div>'
-mesa_html += f'<div class="poker-card" style="color:{"red" if m[1][1] in "♥️♦️" else "black"}">{m[1][0]}{m[1][1]}</div>'
+mesa_html += f'<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:flex; gap:10px;">'
+mesa_html += f'<div style="background:white; color:black; padding:10px; border-radius:5px; font-weight:bold; font-size:20px;">{m[0][0]}{m[0][1]}</div>'
+mesa_html += f'<div style="background:white; color:black; padding:10px; border-radius:5px; font-weight:bold; font-size:20px;">{m[1][0]}{m[1][1]}</div>'
 mesa_html += '</div></div>'
 st.markdown(mesa_html, unsafe_allow_html=True)
 
-# --- ACCIONES GTO ---
-st.write(f"### Acción en **{st.session_state.game['pos']}**")
-estrategia = obtener_estrategia(st.session_state.game['mano'], st.session_state.game['pos'], 100)
-
-if st.session_state.game['resultado']:
-    res = st.session_state.game['resultado']
-    clase = "gto-correct" if res['freq'] > 50 else "gto-wrong"
-    st.markdown(f'<div class="{clase}">Tu decisión: {res["accion"]} (Frecuencia GTO: {res["freq"]}%)</div>', unsafe_allow_html=True)
-    if st.button("Siguiente Mano ➡️"):
-        st.session_state.game = nueva_mano()
-        st.rerun()
-else:
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("🚀 RAISE 3BB"):
-            st.session_state.game['resultado'] = {"accion": "Raise", "freq": estrategia["Raise"]}
-            st.rerun()
-    with col2:
-        if st.button("👀 CALL / CHECK"):
-            st.session_state.game['resultado'] = {"accion": "Call/Check", "freq": estrategia["Call"]}
-            st.rerun()
-    with col3:
-        if st.button("✖️ FOLD"):
-            st.session_state.game['resultado'] = {"accion": "Fold", "freq": estrategia["Fold"]}
-            st.rerun()
+# --- ACCIONES ---
+if not st.session_state.game['show_analysis']:
+    st.write(f"### Turno en {st.session_state.game['pos']}")
+    c1, c2, c3, c4 = st.columns(4)
+    if c1.button("🚀 RAISE (3bb)"): st.session_state.game['show_analysis'] = True
