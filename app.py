@@ -2,7 +2,7 @@ import streamlit as st
 import random
 
 # --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Edge Solver Elite", layout="centered")
+st.set_page_config(page_title="Edge Solver Pro", layout="centered")
 
 # --- DISEÑO UI PREMIUM (MOBILE-FIRST) ---
 st.markdown("""
@@ -23,8 +23,8 @@ st.markdown("""
         display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; width: 180px;
     }
     .card-ui {
-        background: white; color: black; width: 40px; height: 60px;
-        border-radius: 4px; font-weight: 800; font-size: 1.2rem;
+        background: white; color: black; width: 42px; height: 62px;
+        border-radius: 4px; font-weight: 800; font-size: 1.3rem;
         display: flex; align-items: center; justify-content: center;
         box-shadow: 2px 4px 8px rgba(0,0,0,0.4);
     }
@@ -55,8 +55,24 @@ def reset_game():
         "mano": [mazo.pop(), mazo.pop()],
         "board": [mazo.pop(), mazo.pop(), mazo.pop(), mazo.pop(), mazo.pop()],
         "street": "Pre-Flop",
-        "pot": 1.5,
-        "done": False
+        "pot": 1.5
     }
 
+# --- CORRECCIÓN DE LA LÍNEA 62 ---
 if 'game' not in st.session_state:
+    st.session_state.game = reset_game()
+
+g = st.session_state.game
+
+# --- MESA VISUAL ---
+st.title("🧙‍♂️ Edge Solver Pro")
+st.markdown('<div class="poker-arena">', unsafe_allow_html=True)
+
+coords = {"UTG": (50, 12), "MP": (85, 25), "CO": (85, 75), "BTN": (50, 88), "SB": (15, 75), "BB": (15, 25)}
+for pos, (x, y) in coords.items():
+    is_hero = " hero-active" if pos == g['hero_pos'] else ""
+    st.markdown(f'<div class="seat" style="left:{x}%; top:{y}%;"><div class="player-box{is_hero}"><div style="color:#f1c40f; font-weight:bold; font-size:0.7rem;">{pos}</div><div class="stack">100BB</div></div></div>', unsafe_allow_html=True)
+
+# Lógica del Board
+v_count = 0
+if g
