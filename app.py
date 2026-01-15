@@ -66,7 +66,7 @@ g = st.session_state.game
 v = 0 if g['street'] == "Pre-Flop" else 3 if g['street'] == "Flop" else 4 if g['street'] == "Turn" else 5
 board_html = '<div class="board-area">'
 for i in range(v):
-    col = "red" if g['board'][i][-1] in "♥♦" else "black"
+    col = "red" if g['board'][i][-1] in ["♥", "♦"] else "black"
     board_html += f'<div class="card-ui" style="color:{col}">{g["board"][i]}</div>'
 board_html += '</div>'
 st.markdown(board_html, unsafe_allow_html=True)
@@ -97,4 +97,25 @@ l, r = st.columns([1, 2])
 with l:
     st.write("### Tu Mano")
     h = g['mano']
-    st.markdown(f'<div style="display:flex; gap:10px;"><div class="card-ui" style="color:{"red" if
+    # Lógica de color extraída para evitar el SyntaxError de comillas
+    c1 = "red" if h[0][-1] in ["♥", "♦"] else "black"
+    c2 = "red" if h[1][-1] in ["♥", "♦"] else "black"
+    
+    st.markdown(f'''
+        <div style="display:flex; gap:10px;">
+            <div class="card-ui" style="color:{c1}">{h[0]}</div>
+            <div class="card-ui" style="color:{c2}">{h[1]}</div>
+        </div>
+    ''', unsafe_allow_html=True)
+
+with r:
+    st.write("### Estrategia GTO Wizard")
+    matrix = '<div class="gto-matrix">'
+    for v1 in valores:
+        for v2 in valores:
+            prob = random.random()
+            color_bg = "#ff4b4b" if prob > 0.7 else "#2ecc71" if prob > 0.4 else "#34495e"
+            matrix += f'<div class="m-cell" style="background:{color_bg}">{v1}{v2}</div>'
+    matrix += '</div>'
+    st.markdown(matrix, unsafe_allow_html=True)
+    st.caption("🔴 Raise | 🟢 Call | 🔵 Fold")
